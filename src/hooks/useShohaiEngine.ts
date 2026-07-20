@@ -1,10 +1,12 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 
 // Strongly typed interfaces matching the Backend's AnalysisResponse
 export interface NodeModel {
   id: string;
   label: string;
   type: 'trigger' | 'process' | 'output';
+  description?: string;
+  tooltip_text?: string;
 }
 
 export interface CalculatedFinancials {
@@ -14,13 +16,14 @@ export interface CalculatedFinancials {
   estimated_ai_token_cost: number;
   net_monthly_savings: number;
   roi_multiplier: number;
+  solution_value: string;
 }
 
 export interface TimelinePhase {
-  phase_number?: string;
+  phase_number: string;
   title: string;
   duration: string;
-  description: string;
+  description?: string;
   // CamelCase variant
   phaseNumber?: string;
 }
@@ -28,6 +31,7 @@ export interface TimelinePhase {
 export interface AnalysisResponse {
   job_title?: string;
   company_name?: string;
+  extracted_job_description?: string;
   detected_bottleneck?: string;
   estimated_monthly_tasks?: number;
   inferred_seniority?: 'Junior' | 'Mid' | 'Senior';
@@ -37,6 +41,7 @@ export interface AnalysisResponse {
   // CamelCase variants for potential API compatibility
   jobTitle?: string;
   companyName?: string;
+  extractedJobDescription?: string;
   detectedBottleneck?: string;
   estimatedMonthlyTasks?: number;
   inferredSeniority?: 'Junior' | 'Mid' | 'Senior';
@@ -120,33 +125,26 @@ export function useShohaiEngine() {
         body: JSON.stringify({ image: base64String }),
       });
 
+      clearInterval(progressInterval);
+
       if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data: AnalysisResponse = await response.json();
+      const data = await response.json();
       setAnalysisResult(data);
-      setLoadingStep(3);
-    } catch (err: any) {
-      console.error('Audit failed:', err);
-      setError(err.message || 'An error occurred during analysis.');
-    } finally {
+    } catch (err) {
       clearInterval(progressInterval);
-      setTimeout(() => setIsLoading(false), 500);
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  return {
-    isLoading,
-    loadingStep,
-    analysisResult,
-    error,
-    runAudit,
-    reset: () => {
-      setIsLoading(false);
-      setLoadingStep(0);
-      setAnalysisResult(null);
-      setError(null);
-    },
+  const reset = () => {
+    setAnalysisResult(null);
+    setError(null);
   };
+
+  return { isLoading, loadingStep, analysisResult, error, runAudit, reset };
 }

@@ -1,4 +1,4 @@
-import os
+﻿import os
 import logging
 from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
@@ -16,13 +16,17 @@ class NodeModel(BaseModel):
     id: str
     label: str
     type: Literal["trigger", "process", "output"]
+    description: str = Field(..., description="Precise operational behavior of this pipeline node")
 
 class AIExtractionResponse(BaseModel):
     job_title: str = Field(default="N/A")
     company_name: str = Field(default="N/A")
+    extracted_job_description: str = Field(..., description="Clean, formatted text of the parsed job description")
     detected_bottleneck: str
     estimated_monthly_tasks: int = Field(default=1000)
     inferred_seniority: Literal["Junior", "Mid", "Senior"] = Field(default="Mid")
+    extracted_annual_salary: Optional[float] = Field(default=None, description="Extracted annual salary in USD from job posting")
+    salary_currency: Optional[str] = Field(default="USD", description="Original currency of extracted salary (USD, AED, EUR, etc.)")
     proposed_nodes: List[NodeModel]
 
 from api.utils.calculator import CalculatedFinancials, TimelinePhase
@@ -71,7 +75,28 @@ try:
 except ImportError:
     logger.warning("mistralai package not found.")
 
-# 2. Mistral AI Integration
+# Currency conversion rates to USD (approximate, as of 2024)
+CURRENCY_TO_USD = {
+    'USD': 1.0,
+    'AED': 3.67,   # UAE Dirham
+    'EUR': 1.1,   # Euro
+    'GBP': 1.27,  # British Pound
+    'CAD': 0.74,  # Canadian Dollar
+    'AUD': 0.67,  # Australian Dollar
+    'JPY': 0.0067, # Japanese Yen
+    'INR': 0.012, # Indian Rupee
+    'SGD': 0.74,  # Singapore Dollar
+    'HKD': 0.13,  # Hong Kong Dollar
+}
+
+# Currency symbols for extraction
+CURRENCY_SYMBOLS = {'$': 'USD', '£': 'GBP', '€': 'EUR', 'AED': 'AED', 'AED ': 'AED'}
+
+
+def convert_to_usd(amount: float, currency: str = 'USD') -> float:
+    """Convert an amount to USD using approximate exchange rates."""
+    rate = CURRENCY_TO_USD.get(currency.upper(), 1.0)
+    return amount / rate
 @observe(as_type="generation")
 def analyze_job_posting_image(base64_image: str) -> AIExtractionResponse:
     if not mistral_client:
@@ -81,6 +106,15 @@ def analyze_job_posting_image(base64_image: str) -> AIExtractionResponse:
 Analyze the provided job posting image and extract details. 
 Completely ignore creative or human-centric tasks (e.g., team-building, strategy).
 Isolate raw administrative or data-ingestion bottlenecks (e.g., copy-pasting, visual invoice parsing, record updates).
+
+STRICT OUTPUT CONSTRAINTS:
+- detected_bottleneck: MUST be strictly 1 sentence maximum (under 25 words). Be concise and direct.
+- Each proposed node's description field: MUST describe precise operational behavior (e.g., "Listens for incoming webhooks and validates payload structure", "Parses unformatted PDF tables into structured JSON using OCR").
+- extracted_job_description: Provide clean, formatted text representation of the job description.
+- extracted_annual_salary: Extract the salary figure. If MONTHLY (e.g., "10,000 - 13,000 AED per month"), multiply by 12 first, then provide the annual amount. If ANNUAL (e.g., "$95,000/year"), provide as-is. Always return as a NUMBER in the ORIGINAL currency (do NOT convert - the system handles conversion). Examples: "AED 10,000 per month" → 120000.0, "£45,000 per year" → 45000.0. If no salary found, return null.
+- salary_currency: Extract the currency code if present (USD, AED, EUR, GBP, CAD, AUD, JPY, INR, SGD, HKD). Default to USD if dollar symbol.
+- NO redundant currency symbols in any string fields. Single $ prefix only.
+
 You MUST output your response matching the provided JSON schema.
 """
     

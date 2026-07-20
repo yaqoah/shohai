@@ -1,4 +1,4 @@
-import os
+﻿import os
 import time
 from fastapi import FastAPI, Request, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -77,10 +77,12 @@ async def analyze_image(request: AnalysisRequest):
         
         financials = compute_arbitrage_metrics(
             inferred_seniority=extraction.inferred_seniority,
-            estimated_monthly_tasks=extraction.estimated_monthly_tasks
+            estimated_monthly_tasks=extraction.estimated_monthly_tasks,
+            extracted_annual_salary=extraction.extracted_annual_salary,
+            salary_currency=extraction.salary_currency or "USD"
         )
         
-        timeline = get_implementation_timeline()
+        timeline = get_implementation_timeline(detected_bottleneck=extraction.detected_bottleneck)
         
         response = AnalysisResponse(
             **extraction.model_dump(),
@@ -95,3 +97,4 @@ async def analyze_image(request: AnalysisRequest):
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
     finally:
         flush_langfuse()
+

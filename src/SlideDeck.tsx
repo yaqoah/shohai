@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
   Cpu,
@@ -17,7 +17,7 @@ const TABS = [
   { id: 'implementation', label: 'The Implementation', num: '03' },
 ] as const;
 
-type TabId = (typeof TABS)[number]['id'];
+type TabId = typeof TABS[number]['id'];
 
 export function SlideDeck({ ready, analysisResult }: { ready: boolean, analysisResult: AnalysisResponse | null }) {
   const [tab, setTab] = useState<TabId>('financials');
@@ -70,34 +70,30 @@ export function SlideDeck({ ready, analysisResult }: { ready: boolean, analysisR
 /* ============== Tab 1: Financials ============== */
 
 function FinancialsTab({ ready, analysisResult }: { ready: boolean, analysisResult: AnalysisResponse | null }) {
-  // Use camelCase/snake_case compatible access
-  const getFinancials = () => {
-    const fin = (analysisResult as any)?.calculated_financials ?? (analysisResult as any)?.calculatedFinancials;
-    return {
-      baseSalary: fin?.base_salary ?? fin?.baseSalary ?? 58000,
-      totalHumanCost: fin?.total_human_cost ?? fin?.totalHumanCost ?? 58000 * 1.25 / 12,
-    };
-  };
-
-  const humanSalary = getFinancials().baseSalary;
-  const humanMonthly = getFinancials().totalHumanCost;
-
-  // Initialize volume from API payload when ready
-  const [volumeOverride, setVolumeOverride] = useState(1000);
+  // Support both snake_case and camelCase for API compatibility
+  const fin = (analysisResult as any)?.calculated_financials ?? (analysisResult as any)?.calculatedFinancials;
   
+  // Single volume state variable initialized from API payload
+  const [volume, setVolume] = useState(1000);
+  
+  // Initialize volume from API payload when ready
   useEffect(() => {
-    if (ready) {
-      const volume = (analysisResult as any)?.estimated_monthly_tasks ?? (analysisResult as any)?.estimatedMonthlyTasks;
-      if (volume) {
-        setVolumeOverride(volume);
-      }
+    const vol = analysisResult?.estimated_monthly_tasks ?? analysisResult?.estimatedMonthlyTasks ?? 0;
+    if (ready && vol > 0) {
+      setVolume(vol);
     }
   }, [ready, analysisResult]);
 
-  // Dynamic calculations - all update instantly on slider drag
-  const aiMonthly = Math.max(5.0, volumeOverride * 0.00015);
-  const netSavings = Math.max(0, humanMonthly - aiMonthly);
-  const annualized = netSavings * 12;
+  // Derived calculations object driven by volume
+  const calculations = {
+    currentVolume: volume,
+    humanLaborCost: fin?.total_human_cost ?? fin?.totalHumanCost ?? 5000,
+    dynamicAiCost: Math.max(5, volume * 0.04),
+    dynamicNetMonthlySavings: (fin?.total_human_cost ?? fin?.totalHumanCost ?? 5000) - Math.max(5, volume * 0.04),
+    dynamicAnnualizedSavings: ((fin?.total_human_cost ?? fin?.totalHumanCost ?? 5000) - Math.max(5, volume * 0.04)) * 12,
+  };
+
+  const { humanLaborCost, dynamicAiCost, dynamicNetMonthlySavings, dynamicAnnualizedSavings } = calculations;
 
   return (
     <div className="animate-fadeIn">
@@ -109,7 +105,7 @@ function FinancialsTab({ ready, analysisResult }: { ready: boolean, analysisResu
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* Card A — Human Labor */}
+        {/* Card A - Human Labor */}
         <div className="rounded-2xl border border-taupe bg-alabasterdark p-6 shadow-soft">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -127,7 +123,7 @@ function FinancialsTab({ ready, analysisResult }: { ready: boolean, analysisResu
           <div className="mt-5">
             <p className="text-[11px] font-medium text-espresso-faint">Base salary</p>
             <p className="mt-0.5 font-serif text-3xl font-semibold tracking-tight text-espresso">
-              ${ready ? humanSalary.toLocaleString() : '—'}
+              ${ready ? (fin?.base_salary ?? fin?.baseSalary ?? 58000).toLocaleString() : '-'}
               <span className="font-sans text-sm font-medium text-espresso-faint">/yr</span>
             </p>
           </div>
@@ -135,12 +131,12 @@ function FinancialsTab({ ready, analysisResult }: { ready: boolean, analysisResu
             <span className="text-[11px] font-semibold text-espresso-faint">
               Overhead multiplier
             </span>
-            <span className="ml-auto font-serif text-sm font-bold text-espresso">×1.25</span>
+            <span className="ml-auto font-serif text-sm font-bold text-espresso">x 1.25</span>
           </div>
           <div className="mt-4 border-t border-taupe pt-4">
             <p className="text-[11px] font-medium text-espresso-faint">Loaded monthly cost</p>
             <p className="mt-0.5 font-serif text-3xl font-semibold tracking-tight text-espresso">
-              ${ready ? Math.round(humanMonthly).toLocaleString() : '—'}
+              ${ready ? Math.round(humanLaborCost).toLocaleString() : '-'}
               <span className="font-sans text-sm font-medium text-espresso-faint">/mo</span>
             </p>
           </div>
@@ -169,13 +165,13 @@ function FinancialsTab({ ready, analysisResult }: { ready: boolean, analysisResu
           <div className="mt-4 flex items-center gap-2 rounded-lg bg-espresso/5 px-3 py-2">
             <span className="text-[11px] font-semibold text-espresso-soft">Volume</span>
             <span className="ml-auto font-serif text-sm font-bold tabular-nums text-espresso">
-              {volumeOverride.toLocaleString()}/mo
+              {volume.toLocaleString()}/mo
             </span>
           </div>
           <div className="mt-4 border-t border-taupe pt-4">
             <p className="text-[11px] font-medium text-espresso-faint">Monthly API cost (with $5 floor)</p>
             <p className="mt-0.5 font-serif text-3xl font-semibold tabular-nums tracking-tight text-espresso">
-              ${ready ? aiMonthly.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+              ${ready ? dynamicAiCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
               <span className="font-sans text-sm font-medium text-espresso-faint">/mo</span>
             </p>
           </div>
@@ -188,28 +184,28 @@ function FinancialsTab({ ready, analysisResult }: { ready: boolean, analysisResu
           <div>
             <h3 className="font-serif text-base font-semibold text-espresso">Monthly invoice volume</h3>
             <p className="text-[11px] text-espresso-faint">
-              Drag to see how AI cost scales linearly — labor stays flat.
+              Drag to see how AI cost scales linearly - labor stays flat. (100-20,000 invoices)
             </p>
           </div>
           <span className="rounded-lg bg-espresso/5 px-3 py-1.5 font-serif text-sm font-bold tabular-nums text-espresso">
-            {volumeOverride.toLocaleString()} docs
+            {volume.toLocaleString()} docs
           </span>
         </div>
         <input
           type="range"
           min={100}
-          max={5000}
+          max={20000}
           step={50}
-          value={volumeOverride}
-          onChange={(e) => setVolumeOverride(parseInt(e.target.value))}
+          value={volume}
+          onChange={(e) => setVolume(parseInt(e.target.value))}
           className="slider-ochre w-full"
           style={{
-            ['--fill' as string]: `${((volumeOverride - 100) / (5000 - 100)) * 100}%`,
+            ['--fill' as string]: `${((volume - 100) / (20000 - 100)) * 100}%`,
           }}
         />
         <div className="mt-1.5 flex justify-between text-[10px] font-medium text-espresso-faint">
           <span>100</span>
-          <span>5,000</span>
+          <span>20,000</span>
         </div>
       </div>
 
@@ -223,14 +219,14 @@ function FinancialsTab({ ready, analysisResult }: { ready: boolean, analysisResu
             Net Monthly Savings
           </p>
           <p className="font-serif text-3xl font-semibold tabular-nums tracking-tight text-ochre">
-            ${ready ? netSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+            ${ready ? dynamicNetMonthlySavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
             <span className="font-sans text-sm font-medium text-ochre/70">/mo</span>
           </p>
         </div>
         <div className="hidden text-right sm:block">
           <p className="text-[11px] font-medium text-espresso-soft">Annualized</p>
           <p className="font-serif text-lg font-semibold tabular-nums text-espresso">
-            ${ready ? annualized.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}
+            ${ready ? Math.round(dynamicAnnualizedSavings).toLocaleString() : '-'}
           </p>
         </div>
       </div>
@@ -238,12 +234,14 @@ function FinancialsTab({ ready, analysisResult }: { ready: boolean, analysisResu
   );
 }
 
-/* ============== Tab 2: AI Architecture — full-height canvas ============== */
+/* ============== Tab 2: AI Architecture ============== */
 
 type AnyNode = {
   id: string;
   label: string;
   type: 'trigger' | 'process' | 'output';
+  description?: string;
+  tooltip_text?: string;
 };
 
 type AnyPhase = {
@@ -253,6 +251,34 @@ type AnyPhase = {
   duration?: string;
   description?: string;
 };
+
+// Fallback timeline when API doesn't return data
+function getFallbackTimeline(detectedBottleneck: string = ''): AnyPhase[] {
+  const bottleneck = (detectedBottleneck || '').toLowerCase();
+  let phase1Desc = 'Isolating core data feeds, mapping webhook triggers, and safely standing up the isolated LLM execution pipeline in a zero-risk staging sandbox.';
+  let phase2Desc = 'Executing the automated agent loops concurrently alongside the active human operative to profile processing accuracy, error limits, and trace telemetry.';
+  let phase3Desc = 'Final migration to active production, clearing processing locks, and conducting a modular review workshop with operational stakeholders.';
+
+  if (bottleneck.includes('invoice')) {
+    phase1Desc = 'Configuring OCR pipeline for invoice PDF ingestion, mapping vendor fields, and setting up AP system webhooks in sandbox.';
+    phase2Desc = 'Running parallel invoice processing against last months archive to validate data extraction accuracy above 95%.';
+    phase3Desc = 'Cutover to live AP workflow with variance alerting, stakeholder training on exception handling.';
+  } else if (bottleneck.includes('data entry') || bottleneck.includes('manual entry')) {
+    phase1Desc = 'Setting up secure data ingestion endpoints, field mapping rules, and validation constraints in staging.';
+    phase2Desc = 'Processing historical data in parallel to measure extraction accuracy and human correction rates.';
+    phase3Desc = 'Deploying to production with confidence thresholds, configuring alerts for low-confidence predictions.';
+  } else if (bottleneck.includes('customer') || bottleneck.includes('onboarding')) {
+    phase1Desc = 'Integrating CRM APIs, creating intake forms, and building welcome email automation workflows.';
+    phase2Desc = 'Running parallel customer creation flows with manual QA to validate data integrity and compliance.';
+    phase3Desc = 'Going live with customer self-service portal, training support on AI-handled vs human cases.';
+  }
+
+  return [
+    { phase_number: '01', title: 'Sandbox & API Configuration', duration: 'Days 1-3', description: phase1Desc },
+    { phase_number: '02', title: 'Parallel Performance Run', duration: 'Days 4-7', description: phase2Desc },
+    { phase_number: '03', title: 'Live Hand-off & Training', duration: 'Day 8', description: phase3Desc },
+  ];
+}
 
 function ArchitectureTab({ analysisResult }: { analysisResult: AnalysisResponse | null }) {
   const [hovered, setHovered] = useState<string | null>(null);
@@ -264,12 +290,6 @@ function ArchitectureTab({ analysisResult }: { analysisResult: AnalysisResponse 
   
   // Support both snake_case and camelCase for API compatibility
   const nodes: AnyNode[] = (analysisResult as any)?.proposed_nodes ?? (analysisResult as any)?.proposedNodes ?? [];
-
-  const getBehaviorForType = (type: string) => {
-    if (type === 'trigger') return 'Listens for incoming webhooks or uploaded assets and securely passes the raw payload to the orchestrator within milliseconds.';
-    if (type === 'output') return 'Formats the structured payload and executes a secure write API call directly to your target CRM or database.';
-    return 'Uses structured parsing to extract precise, implicit intent from messy human input, stripping away corporate fluff.';
-  };
 
   const nodeLabel = (node: AnyNode) => node.type === 'trigger' ? Mail : node.type === 'output' ? Database : Cpu;
 
@@ -338,7 +358,7 @@ function ArchitectureTab({ analysisResult }: { analysisResult: AnalysisResponse 
             The AI Architecture
           </h2>
           <p className="mt-1 text-sm text-espresso-faint">
-            The agent blueprint — a three-node pipeline from raw intake to ERP write.
+            The agent blueprint - a three-node pipeline from raw intake to ERP write.
           </p>
         </div>
 
@@ -363,6 +383,8 @@ function ArchitectureTab({ analysisResult }: { analysisResult: AnalysisResponse 
             {nodes.map((node, i) => {
               const Icon = nodeLabel(node);
               const isHovered = hovered === node.id;
+              // Use node.description or fallback
+              const tooltipText = node.description || node.tooltip_text || getBehaviorForType(node.type);
               return (
                 <div
                   key={node.id}
@@ -399,7 +421,7 @@ function ArchitectureTab({ analysisResult }: { analysisResult: AnalysisResponse 
                       </div>
                     </div>
 
-                    {/* micro-modal */}
+                    {/* micro-modal - uses node.description */}
                     <div
                       className={`absolute left-1/2 top-full z-20 mt-3 w-[280px] -translate-x-1/2 transition-all duration-400 ease-[cubic-bezier(0.25,1,0.5,1)] ${
                         isHovered
@@ -415,7 +437,7 @@ function ArchitectureTab({ analysisResult }: { analysisResult: AnalysisResponse 
                           </span>
                         </div>
                         <p className="text-[12px] font-medium leading-[1.7] text-espresso-soft">
-                          {getBehaviorForType(node.type)}
+                          {tooltipText}
                         </p>
                       </div>
                     </div>
@@ -453,48 +475,20 @@ function ArchitectureTab({ analysisResult }: { analysisResult: AnalysisResponse 
   );
 }
 
-/* ============== Tab 3: Implementation — editorial timeline ============== */
+// Fallback behavior for nodes without description
+function getBehaviorForType(type: string): string {
+  if (type === 'trigger') return 'Listens for incoming webhooks or uploaded assets and securely passes the raw payload to the orchestrator within milliseconds.';
+  if (type === 'output') return 'Formats the structured payload and executes a secure write API call directly to your target CRM or database.';
+  return 'Uses structured parsing to extract precise, implicit intent from messy human input, stripping away corporate fluff.';
+}
+
+/* ============== Tab 3: Implementation ============== */
+
+
 
 function ImplementationTab({ analysisResult }: { analysisResult: AnalysisResponse | null }) {
-  // Log incoming data for debugging
-  useEffect(() => {
-    if (analysisResult) {
-      console.log('ImplementationTab received data:', {
-        snake_case: (analysisResult as any).implementation_timeline,
-        camelCase: (analysisResult as any).implementationTimeline,
-        keys: Object.keys(analysisResult),
-      });
-    }
-  }, [analysisResult]);
 
-  // Support both snake_case and camelCase for API compatibility
-  const phasesData: AnyPhase[] = (analysisResult as any)?.implementation_timeline ?? (analysisResult as any)?.implementationTimeline ?? [];
-
-  // Show placeholder if no phases available
-  if (!phasesData || phasesData.length === 0) {
-    return (
-      <div className="animate-fadeIn">
-        <div className="mb-8">
-          <h2 className="font-serif text-2xl font-semibold tracking-tight text-espresso">
-            The Implementation
-          </h2>
-          <p className="mt-1 text-sm text-espresso-faint">
-            A low-risk, three-phase rollout from sandbox to seamless hand-off.
-          </p>
-        </div>
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-taupe/20 mx-auto">
-              <Sparkles className="h-8 w-8 text-espresso-faint" />
-            </div>
-            <p className="mt-4 font-serif text-base text-espresso-faint">
-              No implementation timeline available yet.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const apiData = (analysisResult as any)?.implementation_timeline; const phasesData: AnyPhase[] = (apiData && apiData.length > 0) ? apiData : getFallbackTimeline(analysisResult?.detected_bottleneck || '');
 
   return (
     <div className="animate-fadeIn">
@@ -514,7 +508,7 @@ function ImplementationTab({ analysisResult }: { analysisResult: AnalysisRespons
         <ol className="space-y-10">
           {phasesData.map((p, i) => {
             // Defensive extraction with multiple fallbacks
-            const phaseNum = p.phase_number ?? p.phaseNumber ?? String(i + 1);
+            const phaseNum = p.phase_number || p.phaseNumber || String(i + 1);
             const phaseTitle = p.title ?? 'Phase ' + (i + 1);
             const phaseDuration = p.duration ?? '2 weeks';
             const phaseDescription = p.description ?? 'Implementation phase details to be determined.';
@@ -526,7 +520,6 @@ function ImplementationTab({ analysisResult }: { analysisResult: AnalysisRespons
               style={{
                 animation: 'stepFadeIn 0.5s cubic-bezier(0.25,1,0.5,1) forwards',
                 animationDelay: `${i * 140}ms`,
-                opacity: 0,
               }}
             >
               {/* Large serif step number */}
@@ -563,3 +556,39 @@ function ImplementationTab({ analysisResult }: { analysisResult: AnalysisRespons
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
