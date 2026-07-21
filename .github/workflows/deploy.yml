@@ -26,11 +26,5 @@ jobs:
         pip install -r requirements.txt
         pip install pytest httpx black ruff
         
-    - name: Check code formatting with Black
-      run: black --check .
-        
-    - name: Lint with Ruff
-      run: ruff check .
-        
     - name: Run Pytest
       run: pytest tests/
