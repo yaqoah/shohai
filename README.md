@@ -21,6 +21,33 @@ Upload a job posting screenshot, and Shōhai analyzes it to identify automation 
 | AI | Mistral Pixtral-12B (structured outputs) |
 | Observability | Langfuse tracing |
 
+## MCP Integration
+
+Shōhai supports Model Context Protocol (MCP) for enhanced AI agent capabilities within the Poolside agent harness:
+
+| MCP Server | Purpose |
+|------------|---------|
+| `mistral` | AI-powered job analysis with structured outputs via Pixtral-12B vision model |
+| `langfuse` | Observability and tracing for AI operations |
+
+### Agent Harness Configuration
+
+The project uses Poolside's agent harness for development and deployment. MCP configuration can be managed via `.poolside/settings.yaml` for sandbox environments:
+
+```yaml
+# .poolside/settings.local.yaml
+sandbox:
+  read_only: false
+  network:
+    policy: allow
+
+mcp_servers:
+  - mistral
+  - langfuse
+```
+
+This enables seamless integration with external tools and services during AI analysis workflows.
+
 ## Getting Started
 
 ### Prerequisites
