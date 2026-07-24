@@ -487,8 +487,9 @@ function getBehaviorForType(type: string): string {
 
 
 function ImplementationTab({ analysisResult }: { analysisResult: AnalysisResponse | null }) {
-
-  const apiData = (analysisResult as any)?.implementation_timeline; const phasesData: AnyPhase[] = (apiData && apiData.length > 0) ? apiData : getFallbackTimeline(analysisResult?.detected_bottleneck || '');
+  // Support both snake_case and camelCase for API compatibility
+  const apiData = (analysisResult as any)?.implementation_timeline ?? (analysisResult as any)?.implementationTimeline;
+  const phasesData: AnyPhase[] = (apiData && apiData.length > 0) ? apiData : getFallbackTimeline((analysisResult as any)?.detected_bottleneck ?? (analysisResult as any)?.detectedBottleneck ?? '');
 
   return (
     <div className="animate-fadeIn">

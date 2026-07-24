@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, FileText, Play, Sparkles, Upload, X, Zap } from 'lucide-react';
 import { ProcessingOverlay } from './ProcessingOverlay';
 import { SlideDeck } from './SlideDeck';
@@ -10,19 +10,16 @@ function App() {
   const { isLoading, loadingStep, analysisResult, error, runAudit, reset } = useShohaiEngine();
   const [stage, setStage] = useState<Stage>('intake');
   const [dragOver, setDragOver] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (file: File) => {
     setStage('processing');
-    setUploadedFile(file);
     runAudit(file);
   };
 
   const handleClearWorkspace = () => {
     setStage('intake');
     setDragOver(false);
-    setUploadedFile(null);
     reset();
     // Reset the file input value to allow re-uploading the same file
     if (fileInputRef.current) {
@@ -58,7 +55,6 @@ function App() {
           onRunAnalysis={() => setStage('analyzed')}
           analysisResult={analysisResult}
           onClearWorkspace={handleClearWorkspace}
-          uploadedFile={uploadedFile}
         />
         <RightPane stage={stage} analysisResult={analysisResult} />
       </div>
@@ -66,7 +62,7 @@ function App() {
   );
 }
 
-/* ==================== Left Pane ==================== */
+/* ---------------- Left Pane ---------------- */
 
 function LeftPane({
   stage,
@@ -77,7 +73,6 @@ function LeftPane({
   onRunAnalysis,
   analysisResult,
   onClearWorkspace,
-  uploadedFile,
 }: {
   stage: Stage;
   dragOver: boolean;
@@ -87,11 +82,10 @@ function LeftPane({
   onRunAnalysis: () => void;
   analysisResult: AnalysisResponse | null;
   onClearWorkspace: () => void;
-  uploadedFile: File | null;
 }) {
   return (
     <aside className="flex w-full flex-col border-r border-taupe bg-alabaster/80 backdrop-blur-sm lg:w-[40%] lg:min-w-[460px]">
-      {/* App bar - serif wordmark with parallel rules */}
+      {/* App bar — serif wordmark with parallel rules */}
       <header className="flex items-start justify-between px-8 pt-8 pb-6">
         <div className="flex flex-col items-center">
           <h1 className="font-serif text-[22px] font-semibold tracking-tight leading-none text-espresso">
@@ -124,14 +118,14 @@ function LeftPane({
         )}
         {(stage === 'parsing' || stage === 'processing') && <ParsingState />}
         {(stage === 'parsed' || stage === 'analyzed') && (
-          <ParsedAudit analyzed={stage === 'analyzed'} onRunAnalysis={onRunAnalysis} analysisResult={analysisResult} uploadedFile={uploadedFile} onClearWorkspace={onClearWorkspace} />
+          <ParsedAudit analyzed={stage === 'analyzed'} onRunAnalysis={onRunAnalysis} analysisResult={analysisResult} onClearWorkspace={onClearWorkspace} />
         )}
       </div>
     </aside>
   );
 }
 
-/* ==================== Intake Zone ==================== */
+/* ---------------- Intake ---------------- */
 
 function IntakeZone({
   dragOver,
@@ -200,7 +194,7 @@ function IntakeZone({
           {dragOver ? 'Release to ingest' : 'Drag a file here, or click to browse'}
         </p>
         <p className="mt-1.5 text-xs font-medium text-espresso-faint">
-          PNG, JPG, PDF, TXT - up to 10MB
+          PNG · JPG · PDF · TXT — up to 10MB
         </p>
         <div className="mt-6 flex items-center gap-2 rounded-full border border-taupe bg-white px-3.5 py-1.5 shadow-soft">
           <Sparkles className="h-3.5 w-3.5 text-ochre" />
@@ -229,7 +223,7 @@ function IntakeZone({
   );
 }
 
-/* ==================== Parsing State ==================== */
+/* ---------------- Parsing ---------------- */
 
 function ParsingState() {
   return (
@@ -240,7 +234,7 @@ function ParsingState() {
           <Sparkles className="h-7 w-7 animate-pulse text-white" />
         </div>
       </div>
-      <p className="mt-6 font-serif text-base font-medium text-espresso">Parsing listing...</p>
+      <p className="mt-6 font-serif text-base font-medium text-espresso">Parsing listing???</p>
       <p className="mt-1 text-sm text-espresso-faint">Detecting manual-task sentences</p>
       <div className="mt-5 h-1.5 w-48 overflow-hidden rounded-full bg-taupe">
         <div className="h-full w-1/3 animate-[slideIn_1.4s_ease-in-out_infinite] rounded-full bg-espresso" />
@@ -249,26 +243,23 @@ function ParsingState() {
   );
 }
 
-/* ==================== Parsed Audit ==================== */
+/* ---------------- Parsed Audit ---------------- */
 
 function ParsedAudit({
   analyzed,
   onRunAnalysis,
   analysisResult,
-  uploadedFile,
   onClearWorkspace,
 }: {
   analyzed: boolean;
   onRunAnalysis: () => void;
   analysisResult: AnalysisResponse | null;
-  uploadedFile: File | null;
   onClearWorkspace: () => void;
 }) {
-  const totalTasks = analysisResult?.estimated_monthly_tasks || 0;
-
-  // Format file name and size
-  const fileName = uploadedFile?.name || 'ap-coordinator-listing.png';
-  const fileSizeKB = uploadedFile ? Math.round(uploadedFile.size / 1024) : 412;
+  const totalTasks = (analysisResult as any)?.estimated_monthly_tasks ?? (analysisResult as any)?.estimatedMonthlyTasks ?? 0;
+  const netSavings = (analysisResult as any)?.calculated_financials?.net_monthly_savings ?? (analysisResult as any)?.calculatedFinancials?.net_monthly_savings ?? 0;
+  const solutionValue = (analysisResult as any)?.calculated_financials?.solution_value ?? (analysisResult as any)?.calculatedFinancials?.solutionValue ?? '';
+  const companyName = (analysisResult as any)?.company_name ?? (analysisResult as any)?.companyName;
 
   return (
     <div className="animate-springUp">
@@ -279,11 +270,11 @@ function ParsedAudit({
             <FileText className="h-3.5 w-3.5 text-espresso" />
           </div>
           <div className="leading-tight">
-            <p className="text-xs font-semibold text-espresso-soft">{fileName}</p>
-            <p className="text-[10px] text-espresso-faint">{fileSizeKB} KB parsed just now</p>
+            <p className="text-xs font-semibold text-espresso-soft">ap-coordinator-listing.png</p>
+            <p className="text-[10px] text-espresso-faint">412 KB · parsed just now</p>
           </div>
         </div>
-        <button 
+        <button
           onClick={onClearWorkspace}
           className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-espresso-faint transition-colors hover:bg-taupe/50 hover:text-espresso-soft"
         >
@@ -296,17 +287,17 @@ function ParsedAudit({
         <div className="mb-3">
           <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-espresso-faint">Role:</span>
           <h2 className="font-serif text-2xl font-semibold tracking-tight text-espresso">
-            {analysisResult?.job_title || 'Analyzing Role...'}
+            {(analysisResult as any)?.job_title ?? (analysisResult as any)?.jobTitle ?? 'Analyzing Role...'}
           </h2>
         </div>
         <div>
           <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-espresso-faint">Company:</span>
           <p className="text-sm font-medium text-espresso-faint">
-            {analysisResult?.company_name && analysisResult.company_name !== 'N/A' ? analysisResult.company_name : 'NA'}
+            {companyName && companyName !== 'N/A' ? companyName : 'NA'}
           </p>
         </div>
 
-        {/* waste banner */}
+        {/* waste banner - updated badge text */}
         <div className="mt-5 flex items-center gap-3 rounded-xl border border-ochre/20 bg-ochre-faint/50 px-4 py-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-ochre text-white">
             <Zap className="h-4 w-4" />
@@ -315,7 +306,7 @@ function ParsedAudit({
             <p className="font-serif text-sm font-semibold text-espresso">
               {totalTasks.toLocaleString()} automated tasks per month
             </p>
-            <p className="text-[11px] text-espresso-faint">
+            <p className="text-[11px] font-medium text-espresso-faint">
               Major implicit bottlenecks identified in the role description.
             </p>
           </div>
@@ -335,21 +326,21 @@ function ParsedAudit({
       {analyzed && (
         <div className="mt-4 flex items-center gap-2.5 rounded-2xl border border-espresso/15 bg-espresso/[0.04] px-5 py-3.5 text-sm font-semibold text-espresso">
           <CheckCircle2 className="h-4 w-4" />
-          Analysis complete - see dashboard
+          Analysis complete — see dashboard →
         </div>
       )}
 
-      {/* Job description card - bound to extracted_job_description */}
+      {/* Job description - bound to extracted_job_description */}
       <div className="mt-5 rounded-2xl border border-taupe bg-white p-6 shadow-soft">
         <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.14em] text-espresso-soft">
           Job Description
         </h3>
-        <p className="mb-4 text-sm leading-[1.8] text-espresso-soft whitespace-pre-wrap">
-          {analysisResult?.extracted_job_description || analysisResult?.extractedJobDescription || 'Primary workflow extraction pending...'}
+        <p className="text-sm leading-[1.8] text-espresso-soft whitespace-pre-wrap">
+          {((analysisResult as any)?.extracted_job_description ?? (analysisResult as any)?.extractedJobDescription) || 'The job description will appear here once the analysis completes.'}
         </p>
       </div>
 
-      {/* Detected bottlenecks - solution value below */}
+      {/* Detected bottlenecks - updated with clean formatting */}
       <div className="mt-5 rounded-2xl border border-taupe bg-white p-6 shadow-soft">
         <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.14em] text-espresso-soft">
           Primary Bottleneck
@@ -360,13 +351,10 @@ function ParsedAudit({
           </div>
           <div>
             <p className="font-serif text-sm font-semibold text-espresso">
-              {analysisResult?.detected_bottleneck || analysisResult?.detectedBottleneck || 'Manual operational constraints'}
+              {(analysisResult as any)?.detected_bottleneck ?? (analysisResult as any)?.detectedBottleneck ?? 'Manual operational constraints'}
             </p>
-            <p className="mt-1 text-[11px] italic leading-relaxed text-espresso-faint">
-              {analysisResult?.calculated_financials?.solution_value || 
-               analysisResult?.calculatedFinancials?.solution_value || 
-               analysisResult?.calculated_financials?.solution_value || 
-               'ROI potential to be calculated.'}
+            <p className="mt-1.5 text-[12px] italic leading-relaxed text-ochre font-serif">
+              {solutionValue || (netSavings > 0 ? `Saves $${Math.round(netSavings).toLocaleString()}/month in labor costs` : 'Automatable workflow with significant ROI potential')}
             </p>
           </div>
         </div>
@@ -375,7 +363,7 @@ function ParsedAudit({
   );
 }
 
-/* ==================== Right Pane ==================== */
+/* ---------------- Right Pane (60%) ---------------- */
 
 function RightPane({ stage, analysisResult }: { stage: Stage, analysisResult: AnalysisResponse | null }) {
   const ready = stage === 'analyzed' && !!analysisResult;
@@ -399,7 +387,3 @@ function RightPane({ stage, analysisResult }: { stage: Stage, analysisResult: An
 }
 
 export default App;
-
-
-
-
