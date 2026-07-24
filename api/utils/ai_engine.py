@@ -18,6 +18,8 @@ class NodeModel(BaseModel):
     type: Literal["trigger", "process", "output"]
     description: str = Field(..., description="Precise operational behavior of this pipeline node")
 
+from api.utils.calculator import CalculatedFinancials, TimelinePhase
+
 class AIExtractionResponse(BaseModel):
     job_title: str = Field(default="N/A")
     company_name: str = Field(default="N/A")
@@ -28,12 +30,10 @@ class AIExtractionResponse(BaseModel):
     extracted_annual_salary: Optional[float] = Field(default=None, description="Extracted annual salary in USD from job posting")
     salary_currency: Optional[str] = Field(default="USD", description="Original currency of extracted salary (USD, AED, EUR, etc.)")
     proposed_nodes: List[NodeModel]
-
-from api.utils.calculator import CalculatedFinancials, TimelinePhase
+    implementation_timeline: Optional[List[TimelinePhase]] = Field(default=None, description="Three phases for implementing the AI solution, customized to this specific job")
 
 class AnalysisResponse(AIExtractionResponse):
     calculated_financials: CalculatedFinancials
-    implementation_timeline: List[TimelinePhase]
 
 class AnalysisRequest(BaseModel):
     image: str = Field(..., description="Base64 encoded string of the job posting screenshot")
@@ -114,6 +114,13 @@ STRICT OUTPUT CONSTRAINTS:
 - extracted_annual_salary: Extract the salary figure. If MONTHLY (e.g., "10,000 - 13,000 AED per month"), multiply by 12 first, then provide the annual amount. If ANNUAL (e.g., "$95,000/year"), provide as-is. Always return as a NUMBER in the ORIGINAL currency (do NOT convert - the system handles conversion). Examples: "AED 10,000 per month" → 120000.0, "£45,000 per year" → 45000.0. If no salary found, return null.
 - salary_currency: Extract the currency code if present (USD, AED, EUR, GBP, CAD, AUD, JPY, INR, SGD, HKD). Default to USD if dollar symbol.
 - NO redundant currency symbols in any string fields. Single $ prefix only.
+
+IMPLEMENTATION TIMELINE GENERATION:
+Based on the detected bottleneck and proposed architecture, create a three-phase implementation timeline:
+- phase_number: "01", "02", "03"
+- title: Concise phase title (2-4 words)
+- duration: Timeframe (e.g., "Days 1-3", "Days 4-7", "Day 8")
+- description: SPECIFIC to this job's bottleneck and proposed solution. Describe concrete technical steps, not generic phrases. Include specific tools, APIs, or processes mentioned in the job description.
 
 You MUST output your response matching the provided JSON schema.
 """

@@ -252,6 +252,16 @@ type AnyPhase = {
   description?: string;
 };
 
+// Ensure timeline data has required fields
+function normalizePhase(phase: AnyPhase, index: number): AnyPhase {
+  return {
+    phase_number: phase.phase_number ?? phase.phaseNumber ?? String(index + 1),
+    title: phase.title ?? `Phase ${index + 1}`,
+    duration: phase.duration ?? '2 weeks',
+    description: phase.description ?? 'Implementation phase details to be determined.',
+  };
+}
+
 // Fallback timeline when API doesn't return data
 function getFallbackTimeline(detectedBottleneck: string = ''): AnyPhase[] {
   const bottleneck = (detectedBottleneck || '').toLowerCase();
@@ -488,8 +498,12 @@ function getBehaviorForType(type: string): string {
 
 function ImplementationTab({ analysisResult }: { analysisResult: AnalysisResponse | null }) {
   // Support both snake_case and camelCase for API compatibility
-  const apiData = (analysisResult as any)?.implementation_timeline ?? (analysisResult as any)?.implementationTimeline;
-  const phasesData: AnyPhase[] = (apiData && apiData.length > 0) ? apiData : getFallbackTimeline((analysisResult as any)?.detected_bottleneck ?? (analysisResult as any)?.detectedBottleneck ?? '');
+  const implementationTimeline = (analysisResult as any)?.implementation_timeline ?? (analysisResult as any)?.implementationTimeline;
+  
+  // Ensure we have valid array with items before using API data
+  const apiData: AnyPhase[] | null = Array.isArray(implementationTimeline) && implementationTimeline.length > 0 ? implementationTimeline : null;
+  const detectedBottleneck = (analysisResult as any)?.detected_bottleneck ?? (analysisResult as any)?.detectedBottleneck ?? '';
+  const phasesData: AnyPhase[] = apiData ?? getFallbackTimeline(detectedBottleneck);
 
   return (
     <div className="animate-fadeIn">
@@ -500,6 +514,10 @@ function ImplementationTab({ analysisResult }: { analysisResult: AnalysisRespons
         <p className="mt-1 text-sm text-espresso-faint">
           A low-risk, three-phase rollout from sandbox to seamless hand-off.
         </p>
+        {/* Diagnostic indicator - shows if using API or fallback data */}
+        <p className="mt-2 text-[11px] font-medium text-ochre">
+          {apiData ? "✓ Using API data" : "⚠ Using fallback timeline"}
+        </p>
       </div>
 
       <div className="relative">
@@ -508,11 +526,12 @@ function ImplementationTab({ analysisResult }: { analysisResult: AnalysisRespons
 
         <ol className="space-y-10">
           {phasesData.map((p, i) => {
-            // Defensive extraction with multiple fallbacks
-            const phaseNum = p.phase_number || p.phaseNumber || String(i + 1);
-            const phaseTitle = p.title ?? 'Phase ' + (i + 1);
-            const phaseDuration = p.duration ?? '2 weeks';
-            const phaseDescription = p.description ?? 'Implementation phase details to be determined.';
+            // Normalize phase data to ensure all fields are present
+            const normalizedPhase = normalizePhase(p, i);
+            const phaseNum = normalizedPhase.phase_number;
+            const phaseTitle = normalizedPhase.title;
+            const phaseDuration = normalizedPhase.duration;
+            const phaseDescription = normalizedPhase.description;
             
             return (
             <li

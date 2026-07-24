@@ -82,10 +82,19 @@ async def analyze_image(request: AnalysisRequest):
             salary_currency=extraction.salary_currency or "USD"
         )
         
-        timeline = get_implementation_timeline(detected_bottleneck=extraction.detected_bottleneck)
+        # Use AI-generated timeline if available, otherwise fall back to calculator
+        ai_timeline = extraction.implementation_timeline
+        if ai_timeline and len(ai_timeline) >= 3:
+            timeline = ai_timeline
+        else:
+            timeline = get_implementation_timeline(detected_bottleneck=extraction.detected_bottleneck)
+        
+        # Build response - exclude implementation_timeline from extraction to avoid duplicate
+        extraction_dict = extraction.model_dump()
+        extraction_dict.pop('implementation_timeline', None)
         
         response = AnalysisResponse(
-            **extraction.model_dump(),
+            **extraction_dict,
             calculated_financials=financials,
             implementation_timeline=timeline
         )
